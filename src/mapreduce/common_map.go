@@ -1,12 +1,20 @@
 package mapreduce
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
+//read the input file  , call mapF function for file content , and  partition mapF's output into nReduce intermediate files
+// 为每个文件建立nReduce个中间文件
+//将读入的word映射，并且保存在中间文件中
 func doMap(
 	jobName string, // the name of the MapReduce job
-	mapTask int, // which map task this is
+	mapTask int,    // which map task this is
 	inFile string,
 	nReduce int, // the number of reduce task that will be run ("R" in the paper)
 	mapF func(filename string, contents string) []KeyValue,
@@ -53,6 +61,36 @@ func doMap(
 	//
 	// Your code here (Part I).
 	//
+
+	// readFile
+	data, err := ioutil.ReadFile(inFile)
+	if err != nil {
+		fmt.Println("File reading error", err)
+		return
+	}
+	// 将数据映射为键值对
+	result := mapF(inFile, string(data))
+	file := make([]*os.File, nReduce)
+	//create  nReuce file
+	for i := 0; i < nReduce; i++ {
+		file[i], err = os.Create(reduceName(jobName, mapTask, i))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	//将读入的word映射，并且保存在中间文件中
+	for _, word := range result {
+		enc := json.NewEncoder(file[ihash(word.Key) %nReduce])
+		err := enc.Encode(&word)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	//close file
+	for _,file := range file{
+		file.Close()
+	}
+
 }
 
 func ihash(s string) int {

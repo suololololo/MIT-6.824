@@ -32,6 +32,7 @@ type ShutdownReply struct {
 type RegisterArgs struct {
 	Worker string // the worker's UNIX-domain socket name, i.e. its RPC address
 }
+// master send message to worker
 
 // call() sends an RPC to the rpcname handler on server srv
 // with arguments args, waits for the reply, and leaves the

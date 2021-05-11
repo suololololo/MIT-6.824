@@ -1,5 +1,16 @@
 package mapreduce
 
+import (
+	"encoding/json"
+	"log"
+	"os"
+	"sort"
+)
+
+// 1.read the intermediate file
+//2. sort  kv by key
+//3. call  reduceF for each key
+//4. write output to dish
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -44,4 +55,43 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+
+	keyValues := make(map[string][]string)
+	for i := 0; i < nMap; i++ {
+		//read every intermediate file
+		file,err := os.Open(reduceName(jobName,i,reduceTask))
+		if err != nil {
+			log.Fatal(err)
+		}
+		var kv KeyValue
+		dec := json.NewDecoder(file)
+		err = dec.Decode(&kv)
+		for err== nil {
+			keyValues[kv.Key] = append(keyValues[kv.Key],kv.Value)
+			err = dec.Decode(&kv)
+		}
+		file.Close()
+	}
+	//sort by key
+	var keys []string
+	for k := range keyValues {
+		keys = append(keys,k)
+	}
+	sort.Strings(keys)
+	outFileName := mergeName(jobName,reduceTask)
+	out, err := os.Create(outFileName)
+	if err!= nil {
+		log.Fatal(err)
+	}
+	//
+	enc := json.NewEncoder(out)
+	for _,key := range keys {
+		//将kv 经过reduce处理  write in file
+		v := reduceF(key,keyValues[key])
+		err = enc.Encode(KeyValue{key,v})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	out.Close()
 }
